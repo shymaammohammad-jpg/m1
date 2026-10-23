@@ -1,0 +1,310 @@
+{
+  "schema_version": 1,
+  "retrieved_at": "2026-10-23T12:19:43.774248+00:00",
+  "official_host": "mop.gov.iq",
+  "discovery": "استخرجت الروابط من صفحات الوزارة الفعلية، ولم تخمن أسماء الملفات. نزلت الملفات عبر HTTPS مع التحقق المعتاد من شهادة TLS، وفتحت باستخدام PdfReader. فحصت الأغلفة والصفحات المحددة بصرياً.",
+  "sources": [
+    {
+      "id": "instructions_2014",
+      "title": "تعليمات تنفيذ العقود الحكومية رقم (2) لسنة 2014 والضوابط الملحقة",
+      "source_url": "https://mop.gov.iq/documents/gov_contarct/instructions/2-2014.pdf",
+      "linked_from": "https://mop.gov.iq/gover_contract24",
+      "download_local_path": "/tmp/official-contract-instructions/instructions-2014.pdf",
+      "bytes": 1650557,
+      "pdf_pages": 97,
+      "sha256": "20ea8c36d88acf2d18db613a90be33f6772133e9ff612fe66df5f32a80508c1b",
+      "retrieved_via": "HTTPS with normal TLS certificate verification; no verification bypass",
+      "parsed_successfully": true,
+      "edition": "الطبعة المنقحة – تموز 2017",
+      "edition_date": "2017-07",
+      "instruction_number": 2,
+      "instruction_year": 2014,
+      "coverage": "كامل الملف الرسمي ذي 97 صفحة: التعليمات و20 ضابطاً بصيغة منقحة. تتضمن المقدمة في صفحة PDF 3 التعديل الأول للضوابط من 1 إلى 16.",
+      "instructions_pdf_pages": [
+        5,
+        21
+      ],
+      "controls_pdf_pages": [
+        22,
+        97
+      ],
+      "verified_evidence": [
+        {
+          "pdf_page": 1,
+          "detail": "العنوان والطبعة المنقحة: تموز 2017",
+          "image_path": "/tmp/official-contract-instructions/2014-cover-01.png"
+        },
+        {
+          "pdf_page": 3,
+          "detail": "المقدمة تصرح بجمع التعليمات و20 ضابطاً والتعديل الأول للضوابط من 1 إلى 16"
+        },
+        {
+          "pdf_page": 97,
+          "detail": "آخر صفحة مطبوعة، ورقمها 93، تتضمن نهاية الضوابط رقم 20"
+        }
+      ],
+      "later_amendments_known": true,
+      "limitation": "تثبت محفوظات الوزارة وجود تعديلات لاحقة. لا تمثل هذه الطبعة وحدها تجميعاً مكتملاً للتعديلات حتى عام 2026."
+    },
+    {
+      "id": "instructions_2025_gazette",
+      "title": "الوقائع العراقية، العدد 4849: تعليمات تنفيذ العقود العامة رقم (1) لسنة 2025",
+      "source_url": "https://mop.gov.iq/documents/gov_contarct/instructions/2025.pdf",
+      "linked_from": "https://mop.gov.iq/gover_contract24",
+      "download_local_path": "/tmp/official-contract-instructions/instructions-2025.pdf",
+      "bytes": 6273489,
+      "pdf_pages": 64,
+      "sha256": "bb53b2fb99c3a82a372fd8ef991660715a11f44ca29b787c0562889b6463badb",
+      "retrieved_via": "HTTPS with normal TLS certificate verification; no verification bypass",
+      "parsed_successfully": true,
+      "publication_date": "2025-11-17",
+      "gazette_issue": "4849",
+      "instruction_number": 1,
+      "instruction_year": 2025,
+      "instructions_pdf_pages": [
+        3,
+        56
+      ],
+      "coverage": "الملف الرسمي كامل، وعدد صفحاته 64. تشغل التعليمات صفحات PDF من 3 إلى 56، المقابلة للصفحات المطبوعة من 1 إلى 54. تشمل بقية الملف بياناً صحياً غير متعلق بالتدقيق وأغلفة.",
+      "verified_evidence": [
+        {
+          "pdf_page": 1,
+          "detail": "غلاف الجريدة الرسمية يثبت العدد 4849 وتاريخ 2025-11-17",
+          "image_path": "/tmp/official-contract-instructions/2025-cover-01.png"
+        },
+        {
+          "pdf_page": 3,
+          "detail": "بداية التعليمات رقم (1) لسنة 2025",
+          "image_path": "/tmp/official-contract-instructions/2025-cover-03.png"
+        },
+        {
+          "pdf_page": 56,
+          "printed_page": 54,
+          "detail": "المادتان 41 و42: استمرار تعليمات 2014 للعقود المبرمة في ظلها، والنفاذ بعد 90 يوماً من النشر",
+          "image_path": "/tmp/official-contract-instructions/2025-article41-42.png"
+        }
+      ],
+      "effective_date_clause": {
+        "article": 42,
+        "pdf_page": 56,
+        "exact_text": "تنشر هذه التعليمات في الجريدة الرسمية وتنفذ بعد مرور (90) يوماً من تأريخ نشرها."
+      },
+      "transitional_clause": {
+        "article": 41,
+        "pdf_page": 56,
+        "exact_text": "أولاً: تسري تعليمات تنفيذ العقود الحكومية رقم (2) لسنة 2014 والضوابط الملحقة بها على العقود المبرمة في ظلها. ثانياً: تلغى تعليمات تنفيذ العقود الحكومية رقم (2) لسنة 2014 والضوابط الملحقة بها من تاريخ نفاذ هذه التعليمات."
+      },
+      "limitation": "رغم وصف رابط الصفحة بعبارة «والضوابط الملحقة بها»، فإن هذا الملف هو عدد الجريدة الرسمية، ولا يتضمن مجموعة الضوابط العشرين الجديدة. توجد هذه الضوابط في حزمة إعمام 3429."
+    },
+    {
+      "id": "instructions_2025_controls",
+      "title": "إعمام 3429 بتاريخ 2026-02-03: تعليمات تنفيذ العقود العامة رقم (1) لسنة 2025 والضوابط الملحقة بها",
+      "source_url": "https://mop.gov.iq/documents/gov_contarct/announcements/2026/3429.pdf",
+      "linked_from": "https://mop.gov.iq/التعاميم-و-الضوابط-لعام-2026",
+      "download_local_path": "/tmp/official-contract-instructions/circular-3429-2026.pdf",
+      "bytes": 35561644,
+      "pdf_pages": 174,
+      "sha256": "f1f36ae183ed85b69b960beb7cfed3d98d9c92e293922b7bab9c0a8f3355d166",
+      "retrieved_via": "HTTPS with normal TLS certificate verification; no verification bypass",
+      "parsed_successfully": true,
+      "raw_link_scheme": "http",
+      "tls_upgrade": "The actual official page hyperlink used http. The same exact host/path was retrieved using https with verification enabled.",
+      "circular_number": "4/7/3429",
+      "circular_date": "2026-02-03",
+      "signature_date": "2026-02-02",
+      "instruction_number": 1,
+      "instruction_year": 2025,
+      "coverage": "كامل الحزمة الرسمية ذات 174 صفحة: إعمام بصفحتين، ثم غلاف ومقدمة وفهرس، ثم التعليمات والضوابط العشرون. آخر صفحة مطبوعة، ورقمها 168، تنهي الضوابط رقم 20.",
+      "instructions_pdf_pages": [
+        7,
+        55
+      ],
+      "controls_pdf_pages": [
+        56,
+        174
+      ],
+      "actual_implementation_date": "2026-02-15",
+      "date_status": "التاريخ مذكور صراحة في نص الإعمام في صفحة PDF 1، وليس نتيجة استنباط حسابي.",
+      "verified_evidence": [
+        {
+          "pdf_page": 1,
+          "detail": "إعمام 3429 يصرح بوجود 20 ضابطاً وتطبيقها مع التعليمات بدءاً من 2026/2/15",
+          "image_path": "/tmp/official-contract-instructions/circular-3429-2026-page-1.png"
+        },
+        {
+          "pdf_page": 3,
+          "detail": "غلاف التعليمات رقم (1) لسنة 2025 والضوابط الملحقة بها",
+          "image_path": "/tmp/official-contract-instructions/circular-3429-2026-page-3.png"
+        },
+        {
+          "pdf_page": 5,
+          "detail": "فهرس الفصول وبداية الضوابط من 1 إلى 3",
+          "image_path": "/tmp/official-contract-instructions/circular-3429-2026-page-5.png"
+        },
+        {
+          "pdf_page": 6,
+          "detail": "بقية فهرس الضوابط من 4 إلى 20",
+          "image_path": "/tmp/official-contract-instructions/circular-3429-2026-page-6.png"
+        },
+        {
+          "pdf_page": 174,
+          "printed_page": 168,
+          "detail": "نهاية الضوابط رقم 20، مع بيان سريان الضوابط من تاريخ صدورها",
+          "image_path": "/tmp/official-contract-instructions/circular-3429-2026-page-174.png"
+        }
+      ],
+      "limitation": "لم تراجع الحزمة كلها حرفياً. لا يغني التاريخ عن مراجعة المرحلة التعاقدية والأحكام الانتقالية والنصوص الأخرى. بعض الصفحات ممسوحة ضوئياً واستخراج نصها مشوه."
+    },
+    {
+      "id": "amend_2014_control5_2024",
+      "title": "تعديل الضوابط رقم (5): إعمام 16321 بتاريخ 2024-05-07",
+      "source_url": "https://mop.gov.iq/documents/gov_contarct/announcements/2024/16321.pdf",
+      "linked_from": "https://mop.gov.iq/التعاميم-والضوابط-لعام-2024",
+      "download_local_path": "/tmp/official-contract-instructions/amend-control5-16321-2024.pdf",
+      "bytes": 494424,
+      "pdf_pages": 2,
+      "sha256": "9df876a38218223ab17a8bad24ada9781909aaa71321719be7cb83769ea4be1e",
+      "retrieved_via": "HTTPS with normal TLS certificate verification; no verification bypass",
+      "parsed_successfully": true,
+      "circular_number": "4/7/16321",
+      "circular_date": "2024-05-07",
+      "signature_date": "2024-05-06",
+      "amends": {
+        "instruction_year": 2014,
+        "control_number": 5,
+        "paragraph": "رابعاً"
+      },
+      "visually_verified_summary": "تعديل الفقرة الخاصة بمصاريف فتح الاعتماد المستندي، لتصبح مصاريف فتح الاعتماد على المتعاقد داخل العراق وخارجه، بدلاً من الصيغة السابقة المذكورة في الكتاب.",
+      "verified_evidence": [
+        {
+          "pdf_page": 1,
+          "detail": "رقم الكتاب وتاريخه وموضوع التعديل ونصه",
+          "image_path": "/tmp/official-contract-instructions/amend-control5-16321-2024-page-1.png"
+        }
+      ],
+      "limitation": "هذا تعديل محدد مكتشف. لا يثبت عدم وجود تعديلات أخرى لاحقة."
+    },
+    {
+      "id": "amend_2014_control4_2024",
+      "title": "تعديل الضوابط رقم (4): إعمام 46527 بتاريخ 2024-12-30",
+      "source_url": "https://mop.gov.iq/documents/gov_contarct/announcements/2025/31.pdf",
+      "linked_from": "https://mop.gov.iq/التعاميم-والضوابط-لعام-2025",
+      "download_local_path": "/tmp/official-contract-instructions/amend-control4-46527-2024.pdf",
+      "bytes": 178784,
+      "pdf_pages": 2,
+      "sha256": "94d7d7555be2cfa868f40448a7b73561dab228dcb8367be4f302f89fd4d64543",
+      "retrieved_via": "HTTPS with normal TLS certificate verification; no verification bypass",
+      "parsed_successfully": true,
+      "circular_number": "4/7/46527",
+      "circular_date": "2024-12-30",
+      "signature_date": "2024-12-29",
+      "amends": {
+        "instruction_year": 2014,
+        "control_number": 4,
+        "paragraph": "البند ثالثاً، بإضافة الفقرة 20"
+      },
+      "visually_verified_summary": "إضافة نص يجعل شهادة القبول النهائي الصادرة من رئيس جهة التعاقد إقراراً بإكمال المقاول أو الشركة للعقد بصورة صحيحة حسب شروط المقاولة، بالإحالة إلى المادة (870/1) من القانون المدني رقم (40) لسنة 1951 المعدل.",
+      "verified_evidence": [
+        {
+          "pdf_page": 1,
+          "detail": "رقم الكتاب وتاريخه ونص إضافة الفقرة 20 إلى البند ثالثاً",
+          "image_path": "/tmp/official-contract-instructions/amend-control4-46527-2024-page-1.png"
+        }
+      ],
+      "limitation": "الملف مدرج في أرشيف 2025، لكن تاريخ الكتاب هو 2024-12-30. يحفظ التاريخ الفعلي ولا يستنتج من اسم المجلد."
+    }
+  ],
+  "standard_documents": {
+    "index_url": "https://mop.gov.iq/الوثائق-القياسية",
+    "index_local_path": "/tmp/official-contract-instructions/standard-documents.html",
+    "page_reference_circular": "تذكر الصفحة تعميم العدد 9128/7/4 بتاريخ 2017/4/30.",
+    "actual_document_links": [
+      {
+        "label": "وثيقة التأهيل المسبق النموذجية",
+        "url": "https://mop.gov.iq/documents/gov_contarct/standoc/spesdoc/1- وثيقة التأهيل المسبق النموذجية و التي تتضمن/وثيقة-التأهيل-المسبق-النموذجية.doc",
+        "downloaded": false,
+        "file_version_verified": false
+      },
+      {
+        "label": "وثيقة الخدمات الاستشارية",
+        "url": "https://mop.gov.iq/documents/gov_contarct/standoc/spesdoc/2-وثيقة طلب عطاء نموذجي لأختيار الاستشاريين و التي تتضمن/وثيقة الخدمات الاستشارية.doc",
+        "downloaded": false,
+        "file_version_verified": false
+      },
+      {
+        "label": "دليل تنفيذ العقود الجزء الاول",
+        "url": "https://mop.gov.iq/documents/gov_contarct/standoc/spesdoc/3-دليل تنفيذ العقود الحكومية في العراق والذي يتطرق الى/20130529_NIM-CH1_rev3.docx",
+        "downloaded": false,
+        "file_version_verified": false
+      },
+      {
+        "label": "دليل تنفيذ العقود الجزء الثاني",
+        "url": "https://mop.gov.iq/documents/gov_contarct/standoc/spesdoc/3-دليل تنفيذ العقود الحكومية في العراق والذي يتطرق الى/20130529_NIM-CH2_rev3.docx",
+        "downloaded": false,
+        "file_version_verified": false
+      },
+      {
+        "label": "دليل تنفيذ العقود الجزء الثالث",
+        "url": "https://mop.gov.iq/documents/gov_contarct/standoc/spesdoc/3-دليل تنفيذ العقود الحكومية في العراق والذي يتطرق الى/20130529_NIM-CH3_rev3.docx",
+        "downloaded": false,
+        "file_version_verified": false
+      },
+      {
+        "label": "دليل تنفيذ العقود الجزء الرابع",
+        "url": "https://mop.gov.iq/documents/gov_contarct/standoc/spesdoc/3-دليل تنفيذ العقود الحكومية في العراق والذي يتطرق الى/20130623_NIM-CH4_final.docx",
+        "downloaded": false,
+        "file_version_verified": false
+      },
+      {
+        "label": "تحميل وثيقة الكتب والمطبوعات",
+        "url": "https://mop.gov.iq/documents/gov_contarct/standoc/spesdoc/4-وثيقة مناقصة نموذجية لتجهيز الكتب و المطبوعات/وثيقة-الكتب-والمطبوعات-.doc",
+        "downloaded": false,
+        "file_version_verified": false
+      },
+      {
+        "label": "تحميل وثيقة تجهيز انظمة معلوماتية",
+        "url": "https://mop.gov.iq/documents/gov_contarct/standoc/spesdoc/5-infosystem-doc/وثيقة مناقصة نموذجية لتجهيز انظمة معلوماتية.doc",
+        "downloaded": false,
+        "file_version_verified": false
+      },
+      {
+        "label": "تحميل وثيقة تصميم وتجهيز الاعمال الكهروميكانيكية",
+        "url": "https://mop.gov.iq/documents/gov_contarct/standoc/spesdoc/6- الكهروميكانيكية/كهروميكانيكية.doc",
+        "downloaded": false,
+        "file_version_verified": false
+      },
+      {
+        "label": "تحميل وثيقة شراء الأدوية والمستلزمات والأجهزة الطبية",
+        "url": "https://mop.gov.iq/documents/gov_contarct/standoc/spesdoc/7-وثيقة مناقصة نموذجية لشراء الأدوية والمستلزمات والأجهزة الطبية/وثيقة-شراء-الأدوية-والمستلزمات-والأجهزة-الطبية.pdf",
+        "downloaded": false,
+        "file_version_verified": false
+      },
+      {
+        "label": "1-الوثيقة باللغة العربية",
+        "url": "https://mop.gov.iq/documents/gov_contarct/standoc/spesdoc/8-miltray/وثيقة قياسية لتجهيز الاسلحة والمعدات والمواد العسكرية.docx",
+        "downloaded": false,
+        "file_version_verified": false
+      },
+      {
+        "label": "2- الوثيقة باللغة الانكليزية",
+        "url": "https://mop.gov.iq/documents/gov_contarct/standoc/spesdoc/8-miltray/STANDARD REQUEST FOR Proposal.docx",
+        "downloaded": false,
+        "file_version_verified": false
+      },
+      {
+        "label": "3-الوثيقة باللغة العربية و الانكليزية",
+        "url": "https://mop.gov.iq/documents/gov_contarct/standoc/spesdoc/8-miltray/عربي وانكليزي.doc",
+        "downloaded": false,
+        "file_version_verified": false
+      }
+    ],
+    "limitation": "هذه روابط فعلية من الموقع. لم تنزل الملفات ولم تؤكد نسخها وتعديلاتها. تختار الوثيقة المناسبة لنوع التعاقد، وتراجع نسختها قبل التدقيق."
+  },
+  "limitations": [
+    "قاعدة المستخدم التي تربط 2024 بتعليمات 2014، ومن 2025 بتعليمات 2025، لا تعكس وحدها السريان القانوني. تثبت النصوص المكتشفة تاريخ النشر 2025-11-17 وتاريخ بدء تطبيق صريح هو 2026-02-15، مع أحكام انتقالية. يلزم تحديد القاعدة بمراجعة بشرية موثقة، وليس بالسنة وحدها.",
+    "الطبعة المنقحة في تموز 2017 لتعليمات 2014 لا تشمل كل التعديلات حتى 2026. جلب تعديلان معروفان فقط؛ لم يجر استقصاء شامل.",
+    "حزمة تعليمات 2025 والجريدة الرسمية ملفان رسميان مختلفان في التنسيق وتوزيع الصفحات. لم تجر مقارنة حرفية لجميع النصوص أو تجميع لجميع التعاميم اللاحقة.",
+    "كل قيم SHA256 محسوبة من الملفات التي نزلت، وتستخدم للتتبع؛ ليست تواقيع ناشر مستقلة.",
+    "لم تتغير قائمة السماح بالشبكة. المضيف الوحيد للتنزيلات هو mop.gov.iq. لم يعدل أي ملف في التطبيق أو المراجع الأخرى."
+  ]
+}
