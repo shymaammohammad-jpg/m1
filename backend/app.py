@@ -1,6 +1,17 @@
 """Local Arabic contract audit service. Run with uvicorn backend.app:app."""
 from __future__ import annotations
 
+# Explorer and `python backend/app.py` do not establish a package context.
+# Delegate before importing application dependencies or creating any data files.
+if __name__ == "__main__" and not __package__:
+    import runpy
+    from pathlib import Path as _Path
+    _launcher = _Path(__file__).resolve().parents[1] / "run.py"
+    if not _launcher.is_file():
+        raise SystemExit("Extract the ENTIRE ZIP first, then open start_windows.bat from the extracted folder.")
+    runpy.run_path(str(_launcher), run_name="__main__")
+    raise SystemExit
+
 from contextlib import asynccontextmanager
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -535,6 +546,9 @@ def report(case_id: str, format: Literal["html", "pdf"] = "html", final: bool = 
         return HTMLResponse(html)
     try:
         content = render_pdf(html)
+    except RuntimeError as exc:
+        log.exception("PDF rendering failed")
+        raise HTTPException(503, str(exc)) from None
     except Exception:
         log.exception("PDF rendering failed")
         raise HTTPException(503, "تعذر إنشاء PDF حالياً؛ افتح نسخة HTML واطبعها إلى PDF") from None

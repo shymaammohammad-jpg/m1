@@ -134,14 +134,23 @@ def _display_date(value: Any) -> str:
 @functools.lru_cache(maxsize=1)
 def _font_css() -> str:
     styles = []
-    for weight, filename in [(400, "NotoNaskhArabic-Regular.ttf"), (700, "NotoNaskhArabic-Bold.ttf")]:
-        font = Path("/usr/share/fonts/truetype/noto") / filename
-        if font.is_file():
-            encoded = base64.b64encode(font.read_bytes()).decode("ascii")
-            styles.append(
-                f"@font-face{{font-family:AuditNaskh;font-style:normal;font-weight:{weight};"
-                f"src:url(data:font/ttf;base64,{encoded}) format('truetype');}}"
-            )
+    bundled_fonts = Path(__file__).resolve().parent.parent / "frontend" / "public" / "fonts"
+    for weight, style in [(400, "Regular"), (700, "Bold")]:
+        # Prefer the source-style Naskh font when installed. The shipped Sans
+        # fonts keep Arabic reports self-contained on Windows and macOS too.
+        candidates = [
+            Path("/usr/share/fonts/truetype/noto") / f"NotoNaskhArabic-{style}.ttf",
+            bundled_fonts / f"NotoNaskhArabic-{style}.ttf",
+            bundled_fonts / f"NotoSansArabic-{style}.ttf",
+        ]
+        font = next((candidate for candidate in candidates if candidate.is_file()), None)
+        if font is None:
+            continue
+        encoded = base64.b64encode(font.read_bytes()).decode("ascii")
+        styles.append(
+            f"@font-face{{font-family:AuditNaskh;font-style:normal;font-weight:{weight};"
+            f"src:url(data:font/ttf;base64,{encoded}) format('truetype');}}"
+        )
     return "\n".join(styles)
 
 
@@ -391,32 +400,64 @@ def render_report(case: dict[str, Any], references: list[dict[str, Any]], final:
 
 
 def render_pdf(report_html: str) -> bytes:
-    """Print self-contained HTML using the installed local Chromium binary.
+    """Print HTML using a local system or Playwright-installed Chromium.
 
     Rendering requires no external URLs. The temporary profile and files
     are removed after the subprocess finishes, including on failure.
     """
-    chromium = os.environ.get("AUDIT_CHROMIUM_PATH") or shutil.which("chromium") or shutil.which("chromium-browser")
-    if not chromium:
-        raise RuntimeError("تعذر العثور على Chromium لتوليد PDF. يمكن تنزيل نسخة HTML وطباعتها بعد تثبيت Chromium.")
+    explicit_chromium = os.environ.get("AUDIT_CHROMIUM_PATH")
+    if explicit_chromium:
+        configured = Path(os.path.expandvars(explicit_chromium.strip().strip('"'))).expanduser()
+        if not configured.is_file():
+            raise RuntimeError("المسار المحدد في AUDIT_CHROMIUM_PATH ليس ملف متصفح صالحاً. حدّد المسار الكامل إلى Chromium أو Chrome أو Edge.")
+        chromium = str(configured.resolve())
+    else:
+        chromium = next((path for name in ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "msedge")
+                         if (path := shutil.which(name))), "")
     with tempfile.TemporaryDirectory(prefix="audit-report-") as directory:
         root = Path(directory)
         input_path = root / "report.html"
         output_path = root / "report.pdf"
         input_path.write_text(report_html, encoding="utf-8")
         env = os.environ.copy()
+        # Preserve the managed browser's installed location before assigning a
+        # temporary font/browser cache. Playwright otherwise follows XDG_CACHE_HOME
+        # on Linux and would look inside this empty per-report directory.
+        if sys.platform.startswith("linux") and not env.get("PLAYWRIGHT_BROWSERS_PATH"):
+            cache_home = Path(env.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+            env["PLAYWRIGHT_BROWSERS_PATH"] = str(cache_home / "ms-playwright")
         env["XDG_CACHE_HOME"] = str(root / "cache")
         env["XDG_CONFIG_HOME"] = str(root / "config")
         # A subprocess isolates Playwright's synchronous event loop from
         # FastAPI's event loop and gives the whole print operation a deadline.
         # Browser requests are aborted: the report embeds its own fonts.
         renderer = '''
+import os
 import sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 with sync_playwright() as playwright:
+    chromium = sys.argv[3]
+    if not chromium:
+        candidates = [Path(playwright.chromium.executable_path)]
+        if sys.platform == "win32":
+            for variable in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA"):
+                folder = os.environ.get(variable)
+                if folder:
+                    candidates.extend([
+                        Path(folder) / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+                        Path(folder) / "Google" / "Chrome" / "Application" / "chrome.exe",
+                    ])
+        elif sys.platform == "darwin":
+            candidates.extend([
+                Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+                Path("/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"),
+            ])
+        chromium = next((str(candidate) for candidate in candidates if candidate.is_file()), "")
+    if not chromium:
+        sys.exit(3)
     browser = playwright.chromium.launch(
-        executable_path=sys.argv[3], headless=True,
+        executable_path=chromium, headless=True,
         args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-background-networking"],
         timeout=20000,
     )
@@ -434,6 +475,8 @@ with sync_playwright() as playwright:
             process = subprocess.run(command, capture_output=True, timeout=75, env=env, check=False)
         except subprocess.TimeoutExpired as error:
             raise RuntimeError("انتهت مهلة توليد PDF. أعد المحاولة بمستند أقصر أو استخدم نسخة HTML.") from error
+        if process.returncode == 3:
+            raise RuntimeError("لم يُثبت متصفح الطباعة. شغّل install_windows.bat على ويندوز أو نفّذ python -m playwright install chromium داخل بيئة التطبيق، ثم أعد المحاولة.")
         if process.returncode != 0 or not output_path.is_file():
             raise RuntimeError("تعذر توليد PDF بواسطة محرك الطباعة. يمكن مراجعة نسخة HTML وطباعتها.")
         content = output_path.read_bytes()
