@@ -1,0 +1,23 @@
+{
+  "name": "maqad/exam-maps",
+  "description": "Maqad Arabic examination seating and invigilation system",
+  "type": "project",
+  "license": "proprietary",
+  "require": {
+    "php": "^8.2",
+    "ext-pdo": "*",
+    "ext-pdo_mysql": "*",
+    "ext-mbstring": "*",
+    "ext-gd": "*",
+    "ext-zip": "*",
+    "mpdf/mpdf": "^8.2",
+    "phpoffice/phpspreadsheet": "^5.0"
+  },
+  "config": {
+    "sort-packages": true,
+    "allow-plugins": false,
+    "platform": {
+      "php": "8.2.30"
+    }
+  }
+}

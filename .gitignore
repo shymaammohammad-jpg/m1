@@ -1,0 +1,9 @@
+config.php
+storage/*
+!storage/.htaccess
+
+vendor/
+__pycache__/
+*.pyc
+*.log
+.env
