@@ -34,8 +34,11 @@ import {
   RotateCw,
   Paperclip,
   Building2,
+  Sparkles,
+  Settings2,
 } from "lucide-react";
 import "./styles.css";
+import { AISettingsDialog, AutoAuditHome, AutoAuditCase } from "./AutoAudit.jsx";
 const STEPS = [
   [
     "upload",
@@ -1829,7 +1832,10 @@ function App() {
     [toast, setToast] = useState(null),
     [mobile, setMobile] = useState(false),
     [search, setSearch] = useState(""),
-    [reload, setReload] = useState(0);
+    [reload, setReload] = useState(0),
+    [advancedReview, setAdvancedReview] = useState(false),
+    [aiSettingsOpen, setAiSettingsOpen] = useState(false),
+    [aiSettingsVersion, setAiSettingsVersion] = useState(0);
   const timer = useRef();
   function notify(message, type = "success") {
     setToast({ message, type });
@@ -1868,11 +1874,18 @@ function App() {
   async function open(c) {
     try {
       update(await api(`/cases/${c.id}`));
+      setAdvancedReview(false);
       setStep("upload");
       setMobile(false);
     } catch (e) {
       notify(e.message, "error");
     }
+  }
+  async function openAutomaticCase(caseId) {
+    update(await api(`/cases/${caseId}`));
+    setAdvancedReview(false);
+    setStep("upload");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
   function go(s) {
     setStep(s);
@@ -1958,8 +1971,9 @@ function App() {
           <span>مكتبة المراجع</span>
           <b>{N(refs.length)}</b>
         </button>
+        <button className="side-link" onClick={() => { setAiSettingsOpen(true); setMobile(false); }}><Settings2 size={18} /><span>إعداد الذكاء الاصطناعي</span></button>
         <div className="sidebar-divider" />
-        {current ? (
+        {current && advancedReview ? (
           <>
             <div className="sidebar-label">
               مسار فحص العقد <span>{N(idx + 1)} / ٩</span>
@@ -2003,12 +2017,17 @@ function App() {
             </div>
           </>
         ) : (
-          <div className="sidebar-guide">
+          current ? <div className="ai-sidebar-mode">
+            <div className="sidebar-label">التدقيق الآلي</div>
+            <button className="side-link active" onClick={() => setMobile(false)}><Sparkles size={18} /><span>متابعة الفحص والنتائج</span></button>
+            <button className="side-link" onClick={() => { setAdvancedReview(true); setMobile(false); }}><BookOpen size={18} /><span>المراجعة التفصيلية</span></button>
+            <p className="ai-sidebar-description">ينفّذ رقيب المراحل التسع تلقائيًا ويعرض الأدلة والنواقص في ملف واحد.</p>
+          </div> : <div className="sidebar-guide">
             <span>
               <ShieldCheck size={27} />
             </span>
             <h3>من الوثيقة إلى الدليل</h3>
-            <p>تسع خطوات تجمع مستندات العقد ومراجعاته في سجل تدقيق واحد.</p>
+            <p>ارفع العقد وأولياته، ليقرأها رقيب وينفّذ خطوات التدقيق ويُعدّ التقرير.</p>
             <div>
               {STEPS.map((s) => (
                 <i key={s.id} />
@@ -2061,53 +2080,20 @@ function App() {
             <>
               <div className="page-title">
                 <div>
-                  <div className="eyebrow">إدارة وفحص العقود</div>
-                  <h1>ملفات التدقيق</h1>
-                  <p>مراجعة منظّمة، أدلة موثّقة، وقرار يمكن تتبّعه.</p>
+                  <div className="eyebrow">رقيب · التدقيق بالذكاء الاصطناعي</div>
+                  <h1>ارفع العقد، وابدأ التدقيق</h1>
+                  <p>فحص آلي من الأوليات إلى التقرير، مع الاستشهاد بالمصدر والصفحة.</p>
                 </div>
-                <button className="btn primary" onClick={() => setForm("new")}>
-                  <Plus size={18} /> ملف تدقيق جديد
-                </button>
+                <div className="ai-dashboard-actions"><button className="btn primary" onClick={() => document.getElementById("automatic-audit-upload")?.scrollIntoView({ behavior: "smooth" })}><Upload size={18} />رفع العقد وأولياته</button><button className="ai-manual-entry" onClick={() => setForm("new")}>إدخال يدوي متقدم</button></div>
               </div>
-              <section className="welcome-banner">
-                <div className="banner-content">
-                  <span>
-                    <ShieldCheck size={14} /> مساحة عمل رقابية
-                  </span>
-                  <h2>كل ملاحظة تبدأ بدليل.</h2>
-                  <p>
-                    اجمع العقد وأولياته، راجع المراجع السارية، ثم وثّق نتيجة كل
-                    إجراء قبل إصدار التقرير.
-                  </p>
-                  <button onClick={() => setLibrary(true)}>
-                    استعراض المراجع <ArrowLeft size={16} />
-                  </button>
-                </div>
-                <div className="banner-art" aria-hidden="true">
-                  <div className="orbit one" />
-                  <div className="orbit two" />
-                  <div className="paper back" />
-                  <div className="paper front">
-                    <Scale size={33} strokeWidth={1.2} />
-                    <span />
-                    <span />
-                    <span />
-                    <b>
-                      <Check size={13} />
-                    </b>
-                  </div>
-                  <div className="art-badge">
-                    <ShieldCheck size={25} />
-                  </div>
-                </div>
-              </section>
+              <AutoAuditHome onCreated={openAutomaticCase} onSettings={() => setAiSettingsOpen(true)} settingsVersion={aiSettingsVersion} />
               <section className="stats-row">
                 {[
                   [FolderOpen, "ملفات التدقيق", cases.length, "teal"],
                   [
                     CheckCircle2,
-                    "ملفات مكتملة التوثيق",
-                    cases.filter((c) => c.readiness?.ready).length,
+                    "عمليات تدقيق مكتملة",
+                    cases.filter((c) => c.automation?.job?.status === "completed" || c.readiness?.ready).length,
                     "sage",
                   ],
                   [AlertCircle, "ملاحظات مسجّلة", findings, "amber"],
@@ -2144,18 +2130,17 @@ function App() {
                 </div>
                 {!cases.length ? (
                   <Empty
-                    title="ابدأ أول ملف تدقيق"
+                    title="ارفع أول عقد لبدء التدقيق"
                     action={
                       <button
                         className="btn primary"
-                        onClick={() => setForm("new")}
+                        onClick={() => document.getElementById("automatic-audit-upload")?.scrollIntoView({ behavior: "smooth" })}
                       >
-                        <Plus size={17} /> إنشاء ملف تدقيق
+                        <Upload size={17} /> رفع العقد والأوليات
                       </button>
                     }
                   >
-                    لم تُنشأ ملفات بعد. أضف بيانات العقد ثم ارفع مستنداته لتبدأ
-                    خطوات الفحص التسع.
+                    ارفع ملف العقد وأولياته في المنطقة أعلاه. يستخرج رقيب البيانات وينفّذ خطوات الفحص تلقائيًا.
                   </Empty>
                 ) : !filtered.length ? (
                   <Empty title="لا توجد نتائج" icon={Search}>
@@ -2185,7 +2170,7 @@ function App() {
                                   <FileText size={20} />
                                 </span>
                                 <div>
-                                  <strong>{c.title}</strong>
+                                  <strong>{c.title || "جارٍ استخراج بيانات العقد"}</strong>
                                   <small>
                                     {c.contract_number} · {c.entity}
                                   </small>
@@ -2202,12 +2187,10 @@ function App() {
                               <span
                                 className={
                                   "badge " +
-                                  (c.readiness?.ready ? "pass" : "pending")
+                                  (!c.automation?.stale && (c.automation?.job?.status === "completed" || c.readiness?.ready) ? "pass" : "pending")
                                 }
                               >
-                                {c.readiness?.ready
-                                  ? "مكتمل التوثيق"
-                                  : "قيد المراجعة"}
+                                {c.automation?.stale ? "يلزم إعادة التدقيق" : c.automation?.job?.status === "completed" ? "اكتمل التدقيق الآلي" : ["running", "queued"].includes(c.automation?.job?.status) ? "جارٍ التدقيق الآلي" : c.automation?.job?.status === "failed" ? "تعذّر إكمال التدقيق" : c.automation?.job?.status === "cancelled" ? "أُوقف التدقيق" : c.automation?.job?.status === "interrupted" ? "توقف التشغيل قبل الاكتمال" : c.readiness?.ready ? "مكتمل التوثيق" : "لم يبدأ التدقيق"}
                               </span>
                             </td>
                             <td>
@@ -2228,8 +2211,7 @@ function App() {
               <div className="dashboard-footnote">
                 <ShieldCheck size={16} />
                 <p>
-                  يساعد النظام في التنظيم والتوثيق. تبقى مراجعة الأدلة وتفسير
-                  الأحكام واعتماد النتائج مسؤولية المدقق.
+                  ينفّذ رقيب الفحص ويعرض أسانيد النتائج والنواقص بوضوح. يظل اعتماد التقرير الرسمي من اختصاص الجهة المخوّلة.
                 </p>
               </div>
             </>
@@ -2249,7 +2231,7 @@ function App() {
               <div className="page-title case-title">
                 <div>
                   <div className="eyebrow">{current.entity}</div>
-                  <h1>{current.title}</h1>
+                  <h1>{current.title || "جارٍ استخراج بيانات العقد"}</h1>
                   <div className="case-subtitle">
                     <span>
                       <Building2 size={15} />
@@ -2266,10 +2248,10 @@ function App() {
                     )}
                   </div>
                 </div>
-                <button className="btn outline" onClick={() => setForm("edit")}>
-                  <Pencil size={16} /> بيانات العقد
-                </button>
+                {advancedReview && <button className="btn outline" onClick={() => setForm("edit")}><Pencil size={16} /> بيانات العقد</button>}
               </div>
+              {!advancedReview ? <AutoAuditCase current={current} references={refs} schema={schema} onUpdate={update} onReview={() => setAdvancedReview(true)} onSettings={() => setAiSettingsOpen(true)} settingsVersion={aiSettingsVersion} /> : <>
+              <div className="ai-review-topline"><span>المراجعة التفصيلية للبيانات والأدلة</span><button className="btn outline small" onClick={() => setAdvancedReview(false)}><Sparkles size={16} />العودة للتدقيق الآلي</button></div>
               <section className="case-overview">
                 <div className="overview-progress">
                   <div
@@ -2517,7 +2499,7 @@ function App() {
                 >
                   <ArrowRight size={16} /> الخطوة السابقة
                 </button>
-                <span>تُحفظ النتائج عند الضغط على «حفظ»</span>
+                <span>التعديلات هنا تحتاج إعادة تدقيق آلي قبل إخراج تقرير جديد</span>
                 <button
                   className="btn primary"
                   disabled={idx === 8}
@@ -2526,6 +2508,7 @@ function App() {
                   الخطوة التالية <ArrowLeft size={16} />
                 </button>
               </div>
+              </>}
             </>
           )}
         </main>
@@ -2534,6 +2517,7 @@ function App() {
           <span>الدليل أولًا، ثم النتيجة.</span>
         </footer>
       </div>
+      {aiSettingsOpen && <AISettingsDialog Modal={Modal} onClose={() => setAiSettingsOpen(false)} onSaved={() => setAiSettingsVersion((version) => version + 1)} notify={notify} />}
       {form && (
         <CaseForm
           initial={form === "edit" ? current : null}
@@ -2541,6 +2525,7 @@ function App() {
           onSave={(c) => {
             update(c);
             setForm(null);
+            setAdvancedReview(true);
             setStep("upload");
             notify("تم حفظ ملف التدقيق.");
           }}

@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 import socket
 import subprocess
 import sys
@@ -86,6 +87,13 @@ def main(argv: list[str] | None = None) -> int:
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
     os.environ.setdefault("AUDIT_TESSDATA_DIR", str(ROOT / "data/tessdata"))
+    if sys.platform == "win32" and not shutil.which("tesseract"):
+        for base in (os.environ.get("ProgramFiles", r"C:\Program Files"),
+                     os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")):
+            folder = Path(base) / "Tesseract-OCR"
+            if (folder / "tesseract.exe").is_file():
+                os.environ["PATH"] = str(folder) + os.pathsep + os.environ.get("PATH", "")
+                break
     os.environ.setdefault("OMP_THREAD_LIMIT", "1")
     os.environ.setdefault("AUDIT_OCR_ON_UPLOAD", "0")
     address = f"http://{host}:{port}"

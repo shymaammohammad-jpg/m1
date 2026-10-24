@@ -7,3 +7,4 @@ httpx==0.28.1
 playwright==1.62.0
 Pillow==12.3.0
 tzdata==2026.5
+pypdfium2==5.14.0

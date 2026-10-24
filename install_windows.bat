@@ -68,7 +68,8 @@ echo [5/5] Downloading verified public Ministry references...
 if errorlevel 1 goto references_failed
 
 echo.
-echo Installation completed. Double-click start_windows.bat to open Raqib.
+echo Installation completed. Run setup_local_ai_windows.bat once to prepare local AI.
+echo Then double-click start_windows.bat to open Raqib.
 echo Original user PDFs are imported separately from the reference library.
 pause
 exit /b 0

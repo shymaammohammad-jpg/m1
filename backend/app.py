@@ -22,6 +22,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import threading
 from typing import Literal
 import uuid
 
@@ -33,12 +34,27 @@ from .audit_engine import initial_checks, instruction_policy, readiness, valid_e
 from .blacklist import OFFICIAL_NOTICE, OFFICIAL_SOURCES, check_blacklist, validate_official_url
 from .extraction import MAX_EXPANDED, MAX_UPLOAD, create_document, save_upload
 from .storage import Store, now
+from .ai_provider import AIClient, AIProviderError, AISettingsStore
+from .automation import AuditManager, invalidate_ai_audit
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("AUDIT_DATA_DIR", ROOT / "data"))
 STORE = Store(DATA_DIR)
 FRONTEND = ROOT / "frontend" / "dist"
 log = logging.getLogger("audit")
+_AI_MANAGER = None
+_AI_MANAGER_LOCK = threading.RLock()
+
+
+def ai_manager() -> AuditManager:
+    global _AI_MANAGER
+    with _AI_MANAGER_LOCK:
+        if _AI_MANAGER is None or _AI_MANAGER.store is not STORE or _AI_MANAGER._closed:
+            if _AI_MANAGER is not None:
+                _AI_MANAGER.shutdown()
+            _AI_MANAGER = AuditManager(STORE, AISettingsStore(STORE.root))
+            _AI_MANAGER.recover_interrupted()
+        return _AI_MANAGER
 CATEGORIES = {"contract", "supporting", "diwan", "cabinet", "structure", "standard", "instructions", "report_template", "blacklist"}
 STEPS = [
     {"id": "upload", "title": "رفع العقد والأوليات"},
@@ -100,15 +116,20 @@ def import_references():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import_references()
-    yield
+    ai_manager()
+    try:
+        yield
+    finally:
+        if _AI_MANAGER is not None:
+            _AI_MANAGER.shutdown()
 
 
-app = FastAPI(title="نظام تدقيق العقود الحكومية", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="نظام تدقيق العقود الحكومية", version="2.0.0", lifespan=lifespan)
 
 
 @app.middleware("http")
 async def response_headers(request, call_next):
-    if request.method in {"POST", "PATCH", "DELETE"}:
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
         # This local service intentionally exposes no cross-origin API. Prevent browser drive-by writes.
         origin = request.headers.get("origin")
         if origin:
@@ -219,6 +240,11 @@ def require_case(case_id: str) -> dict:
 def serialize_case(case: dict) -> dict:
     case = dict(case)
     case["documents"] = STORE.documents(case["id"])
+    auto = case.get("automation", {})
+    if auto.get("job", {}).get("status") == "completed":
+        from .automation import input_fingerprint
+        if auto.get("input_fingerprint") != input_fingerprint(case, case["documents"], STORE.documents()):
+            auto.update(stale=True, stale_reason="تغيرت بيانات العقد أو مكتبته المرجعية؛ أعد التدقيق الآلي.")
     policy = selected_instruction_policy(case)
     case.update(policy)
     case["readiness"] = readiness(case, STORE.documents())
@@ -308,6 +334,7 @@ def update_case(case_id: str, fields: ContractPatch):
             if key in values:
                 case.setdefault("quick_form", {})[key] = values[key]
         if material_change:
+            invalidate_ai_audit(case, "تغيرت بيانات العقد؛ أعد التدقيق الآلي.")
             for check in case["checks"]:
                 check["status"] = "pending"
             audit_event(case, "تغيير بيانات جوهرية بالعقد وإعادة فتح نتائج التدقيق")
@@ -341,6 +368,7 @@ def upload_documents(case_id: str, files: list[UploadFile] = File(...), category
             Path(doc["_path"]).unlink(missing_ok=True)
         raise HTTPException(422, str(exc)) from None
     def mutate(case):
+        invalidate_ai_audit(case, "أضيفت مستندات إلى ملف العقد؛ أعد التدقيق الآلي.")
         audit_event(case, f"إضافة {len(documents)} مستند في تصنيف {category}")
     return serialize_case(STORE.mutate_case(case_id, mutate))
 
@@ -368,6 +396,7 @@ def delete_document(case_id: str, document_id: str):
     require_case(case_id)
     document = validate_document(document_id, case_id)
     def mutate(case):
+        invalidate_ai_audit(case, "حُذف مستند من ملف العقد؛ أعد التدقيق الآلي.")
         for check in case["checks"]:
             if check.get("evidence_document_id") == document_id or check.get("reference_id") == document_id:
                 check.update(status="pending", evidence_document_id=None, reference_id=None)
@@ -554,6 +583,124 @@ def report(case_id: str, format: Literal["html", "pdf"] = "html", final: bool = 
         raise HTTPException(503, "تعذر إنشاء PDF حالياً؛ افتح نسخة HTML واطبعها إلى PDF") from None
     return Response(content, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="audit-{case_id[:8]}.pdf"'})
+
+
+@app.get("/api/ai/settings")
+def get_ai_settings():
+    try:
+        return AISettingsStore(STORE.root).public_settings()
+    except AIProviderError as exc:
+        raise HTTPException(422, str(exc)) from None
+
+
+@app.put("/api/ai/settings")
+def put_ai_settings(values: dict = Body(...)):
+    try:
+        return AISettingsStore(STORE.root).update_settings(values)
+    except AIProviderError as exc:
+        raise HTTPException(422, str(exc)) from None
+
+
+@app.post("/api/ai/test")
+def test_ai_connection():
+    try:
+        return AIClient(AISettingsStore(STORE.root).settings_snapshot()).test_connection()
+    except AIProviderError as exc:
+        raise HTTPException(409 if exc.code == "not_configured" else 502, str(exc)) from None
+
+
+@app.post("/api/ai/audits", status_code=202)
+def create_automatic_audit(files: list[UploadFile] = File(...)):
+    if not get_ai_settings()["configured"]:
+        raise HTTPException(409, "أكمل إعداد مفتاح OpenAI مرة واحدة من إعداد الذكاء الاصطناعي أولاً.")
+    if not 1 <= len(files) <= 30:
+        raise HTTPException(422, "ارفع العقد والأوليات؛ الحد الأقصى 30 ملفًا أو أرشيف ZIP مدعوم.")
+    documents, case_id = [], None
+    try:
+        for file in files:
+            documents.extend(save_upload(file.file, file.filename or "document", STORE.uploads, "supporting"))
+        if sum(d["size"] for d in documents) > MAX_EXPANDED:
+            raise ValueError("إجمالي الملفات يتجاوز 250 ميغابايت")
+        created = create_case(ContractFields(title="عقد قيد القراءة الآلية", currency=""))
+        case_id = created["id"]
+        STORE.add_documents(documents, case_id)
+        job = ai_manager().start(case_id)
+        return {"case_id": case_id, "job": job}
+    except AIProviderError as exc:
+        raise HTTPException(409 if exc.code == "not_configured" else 502, str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+    finally:
+        if case_id is None:
+            for document in documents:
+                Path(document["_path"]).unlink(missing_ok=True)
+
+
+@app.get("/api/cases/{case_id}/ai-audit")
+def get_automatic_audit(case_id: str):
+    case = serialize_case(require_case(case_id))
+    auto = case.get("automation", {})
+    if not auto.get("job"):
+        raise HTTPException(404, "لم يبدأ تدقيق آلي لهذا الملف بعد.")
+    return {**auto["job"], "stale": auto.get("stale", False)}
+
+
+@app.post("/api/cases/{case_id}/ai-audit", status_code=202)
+def start_automatic_audit(case_id: str):
+    require_case(case_id)
+    try:
+        return ai_manager().start(case_id)
+    except AIProviderError as exc:
+        raise HTTPException(409 if exc.code == "not_configured" else 502, str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from None
+
+
+@app.post("/api/cases/{case_id}/ai-audit/cancel")
+def cancel_automatic_audit(case_id: str):
+    require_case(case_id)
+    return ai_manager().cancel(case_id)
+
+
+def automatic_report_content(case_id: str, pdf=False):
+    case = serialize_case(require_case(case_id))
+    auto = case.get("automation", {})
+    if auto.get("job", {}).get("status") != "completed":
+        raise HTTPException(409, "التقرير الآلي متاح بعد اكتمال المعالجة فقط.")
+    if auto.get("stale"):
+        raise HTTPException(409, "تغيرت المدخلات؛ أعد التدقيق قبل إخراج تقرير النسخة الحالية.")
+    for doc in [*case["documents"], *STORE.documents()]:
+        original = STORE.document(doc["id"])
+        path = Path(original["_path"])
+        if not path.is_file() or path.is_symlink():
+            raise HTTPException(409, "أصل أحد المستندات غير متاح؛ أعد رفعه والتدقيق.")
+        with path.open("rb") as stream:
+            if hashlib.file_digest(stream, "sha256").hexdigest() != original["sha256"]:
+                raise HTTPException(409, "تغيرت بصمة مستند أصلي؛ أعد التدقيق على الأصل الحالي.")
+    from .ai_reports import render_ai_report, render_pdf
+    html = render_ai_report(case, STORE.documents())
+    if not pdf:
+        return HTMLResponse(html)
+    cached = STORE.root / "ai_reports" / f"{auto['job']['id']}.pdf"
+    if cached.is_file():
+        content = cached.read_bytes()
+    else:
+        try:
+            content = render_pdf(html)
+        except Exception:
+            raise HTTPException(503, "تعذر إنشاء PDF؛ افتح عرض التقرير واطبعه إلى PDF من المتصفح.") from None
+    return Response(content, media_type="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="raqib-ai-{case_id[:8]}.pdf"'})
+
+
+@app.get("/api/cases/{case_id}/ai-report.html")
+def automatic_report_html(case_id: str):
+    return automatic_report_content(case_id)
+
+
+@app.get("/api/cases/{case_id}/ai-report.pdf")
+def automatic_report_pdf(case_id: str):
+    return automatic_report_content(case_id, pdf=True)
 
 
 @app.get("/api/{unmatched:path}")

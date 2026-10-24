@@ -108,6 +108,30 @@ class Store:
         with self.connection() as conn:
             conn.execute("DELETE FROM documents WHERE id=?", (document_id,))
 
+    def update_document(self, document_id: str, values: dict, text: str | None = None):
+        """Update descriptive metadata, never the immutable original or its identity."""
+        allowed = {"category", "page_count", "pagination", "extraction_status", "extracted_characters", "warnings"}
+        if set(values) - allowed:
+            raise ValueError("Unsupported document metadata change")
+        with self.connection() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute("SELECT payload FROM documents WHERE id=?", (document_id,)).fetchone()
+            if not row:
+                raise KeyError(document_id)
+            payload = json.loads(row[0])
+            payload.update(values)
+            conn.execute("UPDATE documents SET payload=? WHERE id=?",
+                         (json.dumps(payload, ensure_ascii=False), document_id))
+            if text is not None:
+                conn.execute("UPDATE documents SET text=? WHERE id=?", (text[:4_000_000], document_id))
+
+    def delete_empty_case(self, case_id: str):
+        with self.connection() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            if conn.execute("SELECT 1 FROM documents WHERE case_id=?", (case_id,)).fetchone():
+                raise ValueError("Case contains documents")
+            conn.execute("DELETE FROM cases WHERE id=?", (case_id,))
+
     def reference_imported(self, source: str) -> bool:
         with self.connection() as conn:
             return conn.execute("SELECT 1 FROM imported_references WHERE source=?", (source,)).fetchone() is not None
