@@ -1,5 +1,7 @@
 # رقيب — تدقيق العقود الحكومية بالذكاء الاصطناعي المحلي
 
+[تنزيل تحديث الأداء المحلي 2.0.1](https://github.com/shymaammohammad-jpg/m1/raw/refs/heads/raqib-local-performance/downloads/Raqib_Local_Performance_2.0.1.zip) · [طريقة التحديث والقياس](UPDATE_LOCAL_PERFORMANCE_AR.md)
+
 [تنزيل رقيب المحلي 2.0.0](https://github.com/shymaammohammad-jpg/m1/raw/refs/heads/raqib-local-ai/downloads/Raqib_Local_AI_2.0.0.zip) · [سجل التحقق](VALIDATION_LOCAL_AI_AR.md)
 
 يبدأ المسار الرئيسي برفع العقد وأولياته فقط، بما فيها أرشيف ZIP، ثم يشغّل رقيب خطوات التدقيق التسع ويعدّ استمارة الفحص والتقرير مع الاقتباسات ومصادرها. يعمل النموذج عبر **Ollama على الحاسبة نفسها**، دون مفتاح API أو إرسال مستندات العقد إلى مزود سحابي. يبقى الفحص اليدوي موجودًا داخل «المراجعة التفصيلية» عند الحاجة إلى فحص النتيجة أو تعديلها.

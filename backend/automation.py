@@ -125,6 +125,39 @@ def _map_packets(corpus, max_chars=32000):
         yield packet
 
 
+def _map_with_recovery(ask, payload, *, depth=0):
+    """Retry truncated extraction on smaller excerpts, never accept partial JSON.
+
+    Both halves retain their original page identity. Recovery is bounded and
+    uses the normal request budget and cancellation checks through ``ask``.
+    """
+    try:
+        return ask(payload, MAP_SCHEMA, "extract_contract")
+    except AIProviderError as exc:
+        if exc.code != "incomplete" or depth >= 3:
+            raise
+        pages = payload.get("pages", [])
+        if len(pages) > 1:
+            middle = len(pages) // 2
+            halves = [pages[:middle], pages[middle:]]
+        elif len(pages) == 1 and len(pages[0].get("text", "")) >= 600:
+            page = pages[0]
+            text = page["text"]
+            middle = len(text) // 2
+            halves = [[{**page, "text": text[:middle + 100], "excerpted": True}],
+                      [{**page, "text": text[middle - 100:], "excerpted": True}]]
+        else:
+            raise
+    merged = {"facts": [], "documents": []}
+    for pages in halves:
+        result = _map_with_recovery(ask, {**payload, "pages": pages}, depth=depth + 1)
+        for key in merged:
+            for item in result[key]:
+                if item not in merged[key]:
+                    merged[key].append(item)
+    return merged
+
+
 class AuditManager:
     def __init__(self, store, settings_store, *, client_factory=AIClient,
                  extractor=cached_extract_document, blacklist_runner=None, build_pdf=True):
@@ -432,8 +465,10 @@ class AuditManager:
                 limits.append("تجاوز الملف حد القراءة التفصيلية في هذه الجولة؛ بقيت أجزاء لم تُحلل بالكامل. قسّم الأوليات لرفع التغطية.")
             for number, packet in enumerate(packets[:24], 1):
                 stage("upload", message=f"تحليل بيانات العقد والأوليات — دفعة {number} من {min(24, len(packets))}")
-                mapped = ask({"request": "استخرج بيانات العقد الفعلية فقط وحدد الوثيقة التي تمثل العقد. لا تخلط رقم المناقصة أو مبالغ الضمان مع رقم العقد أو مبلغه. لا تستنتج الأسماء أو التواريخ الناقصة.",
-                              "pages": packet}, MAP_SCHEMA, "extract_contract")
+                mapping_payload = {"request": "استخرج بيانات العقد الفعلية فقط وحدد الوثيقة التي تمثل العقد. لا تخلط رقم المناقصة أو مبالغ الضمان مع رقم العقد أو مبلغه. لا تستنتج الأسماء أو التواريخ الناقصة. اجعل الاقتباسات قصيرة وكافية، ولا تكرر الحقيقة نفسها.",
+                                   "pages": packet}
+                mapped = (_map_with_recovery(ask, mapping_payload) if local else
+                          ask(mapping_payload, MAP_SCHEMA, "extract_contract"))
                 for proposal in mapped["documents"]:
                     if proposal["document_id"] not in case_ids:
                         continue

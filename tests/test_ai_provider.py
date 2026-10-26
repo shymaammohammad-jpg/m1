@@ -289,7 +289,8 @@ class AITransportTests(unittest.TestCase):
         body = json.loads(request.content)
         self.assertEqual(body["format"], SCHEMA)
         self.assertIs(body["stream"], False)
-        self.assertEqual(body["options"], {"temperature": 0, "num_ctx": 16384, "num_predict": 4096})
+        self.assertEqual(body["keep_alive"], "15m")
+        self.assertEqual(body["options"], {"temperature": 0, "num_ctx": 8192, "num_predict": 4096})
 
     def test_local_vision_uses_native_images_without_remote_urls_or_cloud_credentials(self):
         requests = []
