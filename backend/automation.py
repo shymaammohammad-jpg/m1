@@ -467,7 +467,7 @@ class AuditManager:
                 stage("upload", message=f"تحليل بيانات العقد والأوليات — دفعة {number} من {min(24, len(packets))}")
                 mapping_payload = {"request": "استخرج بيانات العقد الفعلية فقط وحدد الوثيقة التي تمثل العقد. لا تخلط رقم المناقصة أو مبالغ الضمان مع رقم العقد أو مبلغه. لا تستنتج الأسماء أو التواريخ الناقصة. اجعل الاقتباسات قصيرة وكافية، ولا تكرر الحقيقة نفسها.",
                                    "pages": packet}
-                mapped = (_map_with_recovery(ask, mapping_payload) if local else
+                mapped = (_map_with_recovery(ask, mapping_payload) if local or client.settings.get("provider") == "gemini" else
                           ask(mapping_payload, MAP_SCHEMA, "extract_contract"))
                 for proposal in mapped["documents"]:
                     if proposal["document_id"] not in case_ids:

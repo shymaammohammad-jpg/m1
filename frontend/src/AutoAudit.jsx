@@ -15,7 +15,10 @@ const STEP_NAMES = [
 ];
 const ACTIVE = new Set(["queued", "running"]);
 const TERMINAL = new Set(["completed", "failed", "cancelled", "interrupted"]);
+const PROVIDER_NAMES = { ollama: "نموذج محلي", openai: "OpenAI", gemini: "Gemini" };
+
 const DEFAULTS = {
+  gemini: { model: "gemini-2.5-flash", base_url: "https://generativelanguage.googleapis.com/v1beta" },
   openai: { model: "gpt-5.2", base_url: "https://api.openai.com/v1" },
   ollama: { model: "qwen2.5:3b", base_url: "http://127.0.0.1:11434" },
 };
@@ -63,8 +66,8 @@ function useSettings(version) {
 
 function ProviderNotice({ settings }) {
   return <p className="ai-provider-notice"><ShieldCheck size={17} />
-    {settings?.provider === "openai"
-      ? "عند بدء التدقيق، تعالج خدمة OpenAI نصوص العقد وأولياته والمراجع اللازمة باستخدام مفتاحك الخاص."
+    {settings?.provider && settings.provider !== "ollama"
+      ? `عند بدء التدقيق، تُرسل نصوص العقد وأولياته والمراجع اللازمة، وقد تُرسل صور الصفحات غير المقروءة، إلى ${PROVIDER_NAMES[settings.provider]} باستخدام مفتاحك. تخضع البيانات لشروط المزوّد؛ المعالجة السحابية تحتاج الإنترنت وحصة استخدام متاحة.`
       : "يبقى تحليل العقد وأولياته على الحاسبة عبر Ollama، دون مفتاح API. يحتاج الاستعلام عن القوائم السوداء إلى الاتصال بموقع الوزارة."}
   </p>;
 }
@@ -113,12 +116,12 @@ export function AISettingsDialog({ Modal, onClose, onSaved, notify }) {
     } catch (failure) { setError(failure.message); }
     finally { setBusy(false); }
   }
-  return <Modal title={values.provider === "openai" ? "إعداد خدمة OpenAI" : "إعداد الذكاء الاصطناعي المحلي"} description="يُحفظ الإعداد مرة واحدة، ثم يبدأ التدقيق برفع المستندات." onClose={() => !busy && onClose()}>
+  return <Modal title={values.provider !== "ollama" ? `إعداد خدمة ${PROVIDER_NAMES[values.provider]}` : "إعداد الذكاء الاصطناعي المحلي"} description="يُحفظ الإعداد مرة واحدة، ثم يبدأ التدقيق برفع المستندات." onClose={() => !busy && onClose()}>
     <div className="ai-settings-content">
       {loading ? <div className="ai-loading"><Loader2 className="spin" /> جارٍ قراءة الإعدادات…</div> : <>
         <label className="ai-field">طريقة المعالجة
           <select aria-label="طريقة المعالجة" value={values.provider} onChange={(event) => changeProvider(event.target.value)} disabled={busy}>
-            <option value="ollama">Ollama — نموذج محلي على الحاسبة</option><option value="openai">OpenAI — خيار سحابي اختياري</option>
+            <option value="gemini">Gemini — سحابي، قد تتوفر حصة مجانية</option><option value="openai">OpenAI — سحابي برصيد API</option><option value="ollama">Ollama — نموذج محلي على الحاسبة</option>
           </select>
         </label>
         <label className="ai-field">اسم النموذج
@@ -128,13 +131,18 @@ export function AISettingsDialog({ Modal, onClose, onSaved, notify }) {
           <input aria-label="عنوان Ollama على جهازك" dir="ltr" value={values.base_url || ""} onChange={(event) => setValues({ ...values, base_url: event.target.value })} disabled={busy} placeholder="http://127.0.0.1:11434" />
           <small>يقبل البرنامج عنوانًا محليًا على الجهاز الذي يشغّل خدمة رقيب. لا يحتاج هذا الخيار إلى مفتاح API.</small>
         </label><LocalSetupNote compact /></> : <>
-          <label className="ai-field">مفتاح OpenAI
-            <input aria-label="مفتاح OpenAI" type="password" dir="ltr" autoComplete="new-password" value={values.api_key} onChange={(event) => setValues({ ...values, api_key: event.target.value })} disabled={busy || clearKey} placeholder={saved?.key_configured ? "يوجد مفتاح محفوظ؛ اتركه فارغًا للاحتفاظ به" : "أدخل المفتاح هنا فقط"} />
+          <label className="ai-field">مفتاح {PROVIDER_NAMES[values.provider]}
+            <input aria-label={`مفتاح ${PROVIDER_NAMES[values.provider]}`} type="password" dir="ltr" autoComplete="new-password" value={values.api_key} onChange={(event) => setValues({ ...values, api_key: event.target.value })} disabled={busy || clearKey} placeholder={saved?.provider === values.provider && saved?.key_configured ? "يوجد مفتاح محفوظ؛ اتركه فارغًا للاحتفاظ به" : "أدخل المفتاح هنا فقط"} />
             <small>لا يظهر المفتاح المحفوظ في الواجهة ولا يُرسل ضمن التقارير. لا تضعه داخل ملفات العقد.</small>
           </label>
-          {saved?.key_source === "environment" ? <p className="ai-small-note">المفتاح الحالي مأخوذ من إعدادات الجهاز؛ له الأولوية على المفتاح المحفوظ داخل البرنامج.</p> : saved?.key_configured &&
+          {saved?.provider === values.provider && saved?.key_source === "environment" ? <p className="ai-small-note">المفتاح الحالي مأخوذ من إعدادات الجهاز؛ له الأولوية على المفتاح المحفوظ داخل البرنامج.</p> : saved?.provider === values.provider && saved?.key_configured &&
             <label className="ai-checkbox"><input type="checkbox" checked={clearKey} onChange={(event) => setClearKey(event.target.checked)} disabled={busy} /> حذف المفتاح المحفوظ عند الحفظ</label>}
         </>}
+        {values.provider !== "ollama" && <aside className="ai-local-setup">
+          <h3>إعداد API السحابي</h3>
+          <p>اختر نموذجًا متاحًا لحسابك، وأدخل مفتاحك ثم اضغط «حفظ واختبار الاتصال». لا تحتاج إلى تشغيل Ollama أو تنزيل نموذج لهذا الخيار. تبقى قراءة المستندات محلية قبل إرسال الأدلة اللازمة للتحليل.</p>
+          {values.provider === "gemini" ? <p><a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">إنشاء مفتاح Gemini</a> · <a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noreferrer">الأسعار وحدود الخطة</a> · <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noreferrer">شروط البيانات</a>. قد تتوفر حصة مجانية حسب النموذج والبلد والحساب؛ لا توجد مجانية غير محدودة مضمونة. راجع استخدام البيانات قبل إرسال عقود سرية.</p> : <p><a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">إنشاء مفتاح OpenAI</a>. رصيد API منفصل عن اشتراك تطبيق المحادثة.</p>}
+        </aside>}
         <ProviderNotice settings={values} />
         {saved && <p className="ai-settings-status"><span className={test?.ok ? "ai-dot ready" : "ai-dot"} />{saved.configured ? "الإعداد محفوظ؛ نجاح اختبار الاتصال يؤكد أن النموذج يعمل." : "يلزم إكمال إعداد الخدمة قبل بدء التدقيق."}</p>}
       </>}
@@ -193,9 +201,9 @@ export function AutoAuditHome({ onCreated, onSettings, settingsVersion = 0 }) {
       <p>يقرأ المستندات، يستخرج بيانات العقد، ينفّذ خطوات التدقيق التسع ويُعدّ التقرير مع أدلته.</p>
     </div><button type="button" className="btn outline small" onClick={onSettings}><Settings2 size={16} />إعداد الذكاء الاصطناعي</button></div>
     <div className="ai-service-line"><span className="ai-dot" />
-      {settings ? settings.configured ? `الإعداد المحفوظ: ${settings.provider === "ollama" ? "نموذج محلي" : "OpenAI"} · ${settings.model}` : "أكمل إعداد الذكاء الاصطناعي مرة واحدة للبدء" : "جارٍ قراءة إعداد الخدمة…"}
+      {settings ? settings.configured ? `الإعداد المحفوظ: ${PROVIDER_NAMES[settings.provider] || settings.provider} · ${settings.model}` : "أكمل إعداد الذكاء الاصطناعي مرة واحدة للبدء" : "جارٍ قراءة إعداد الخدمة…"}
     </div>
-    {settings?.provider !== "openai" && <LocalSetupNote />}
+    {settings?.provider === "ollama" && <aside className="ai-local-setup"><h3>التبديل إلى API سحابي</h3><p>يمكنك اختيار Gemini أو OpenAI بدل النموذج المحلي. تُرسل المستندات اللازمة إلى المزوّد عند بدء التدقيق.</p><button className="btn outline" onClick={onSettings}><Settings2 size={16} /> إعداد API السحابي</button></aside>}
     <div className={"ai-dropzone " + (dragging ? "dragging" : "")} onDragOver={(event) => { event.preventDefault(); if (!busy) setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); if (!busy) selectFiles(event.dataTransfer.files); }}>
       <Upload size={29} strokeWidth={1.5} /><h3>اسحب ملف العقد وأولياته هنا</h3><p>يمكنك اختيار عدة ملفات أو أرشيف ZIP؛ يصنّف رقيب المستندات تلقائيًا.</p>
       <button type="button" className="btn outline" onClick={() => picker.current?.click()} disabled={busy}><FileText size={16} /> اختيار الملفات</button>
@@ -293,7 +301,7 @@ export function AutoAuditCase({ current, references = [], schema = [], onUpdate,
   const reportReady = currentRun && job?.status === "completed" && !automation.stale && !job?.stale;
   return <div className="ai-case-view">
     <section className="panel ai-job-panel">
-      <div className="ai-job-heading"><span className="ai-hero-icon"><Sparkles size={26} /></span><div><div className="eyebrow">مسار التدقيق التلقائي</div><h2>{running ? "رقيب يفحص المستندات الآن" : job?.status === "completed" ? "اكتمل التدقيق الآلي" : job?.status === "cancelled" ? "أُوقف التدقيق" : job?.status === "interrupted" ? "توقف التشغيل قبل الاكتمال" : job?.status === "failed" ? "تعذّر إكمال التدقيق" : "ابدأ التدقيق بالذكاء الاصطناعي"}</h2><p>{job?.model ? `${job.provider === "ollama" ? "نموذج محلي" : "OpenAI"} · ${job.model}` : "ينفّذ الخطوات التسع من المستندات دون تعبئة نتائج الفحص يدويًا."}</p></div>
+      <div className="ai-job-heading"><span className="ai-hero-icon"><Sparkles size={26} /></span><div><div className="eyebrow">مسار التدقيق التلقائي</div><h2>{running ? "رقيب يفحص المستندات الآن" : job?.status === "completed" ? "اكتمل التدقيق الآلي" : job?.status === "cancelled" ? "أُوقف التدقيق" : job?.status === "interrupted" ? "توقف التشغيل قبل الاكتمال" : job?.status === "failed" ? "تعذّر إكمال التدقيق" : "ابدأ التدقيق بالذكاء الاصطناعي"}</h2><p>{job?.model ? `${PROVIDER_NAMES[job.provider] || job.provider} · ${job.model}` : "ينفّذ الخطوات التسع من المستندات دون تعبئة نتائج الفحص يدويًا."}</p></div>
         <div className="ai-job-actions">{running ? <button className="btn outline small" onClick={cancel} disabled={busy}><Square size={15} />إيقاف التدقيق</button> : <button className="btn primary" onClick={run} disabled={busy || !current.documents?.length || !settings?.configured}>{busy ? <Loader2 className="spin" size={16} /> : <Play size={16} />}{job ? "إعادة التدقيق" : "بدء التدقيق الآلي"}</button>}<button className="icon-btn" onClick={onSettings} title="إعداد الذكاء الاصطناعي" aria-label="إعداد الذكاء الاصطناعي"><Settings2 size={19} /></button></div>
       </div>
       {!settings?.configured && <p className="ai-small-note">أكمل <button className="inline-link" onClick={onSettings}>إعداد خدمة الذكاء الاصطناعي</button> قبل بدء التدقيق.</p>}

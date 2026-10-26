@@ -612,7 +612,7 @@ def test_ai_connection():
 @app.post("/api/ai/audits", status_code=202)
 def create_automatic_audit(files: list[UploadFile] = File(...)):
     if not get_ai_settings()["configured"]:
-        raise HTTPException(409, "أكمل إعداد مفتاح OpenAI مرة واحدة من إعداد الذكاء الاصطناعي أولاً.")
+        raise HTTPException(409, "أكمل إعداد مفتاح المزوّد السحابي المختار من إعداد الذكاء الاصطناعي أولاً.")
     if not 1 <= len(files) <= 30:
         raise HTTPException(422, "ارفع العقد والأوليات؛ الحد الأقصى 30 ملفًا أو أرشيف ZIP مدعوم.")
     documents, case_id = [], None

@@ -2,7 +2,8 @@
 
 The provider never decides that an audit is valid: callers must verify the
 returned evidence against original documents. No uploaded file is executed;
-OpenAI receives explicitly supplied text/images with response storage disabled.
+Cloud providers receive explicitly supplied text/images; OpenAI response storage
+is disabled. Gemini retention and data use remain subject to Google's terms.
 """
 from __future__ import annotations
 
@@ -29,6 +30,7 @@ import httpcore
 DEFAULTS = {
     "openai": {"model": "gpt-5.2", "base_url": "https://api.openai.com/v1"},
     "ollama": {"model": "qwen2.5:3b", "base_url": "http://127.0.0.1:11434"},
+    "gemini": {"model": "gemini-2.5-flash", "base_url": "https://generativelanguage.googleapis.com/v1beta"},
 }
 _ALLOWED_SETTINGS = {"provider", "model", "base_url", "api_key", "clear_api_key"}
 _MAX_RESPONSE_BYTES = 8 * 1024 * 1024
@@ -50,7 +52,7 @@ class AIProviderError(RuntimeError):
 
 
 def _supports_images(settings: dict) -> bool:
-    if settings["provider"] == "openai":
+    if settings["provider"] in {"openai", "gemini"}:
         return True
     model = settings["model"].lower().rsplit("/", 1)[-1]
     name, _, tag = model.partition(":")
@@ -203,6 +205,11 @@ def _base_url(provider: str, value: str) -> str:
                 or parsed.path not in {"", "/", "/v1", "/v1/"}):
             raise AIProviderError("تُرسل طلبات OpenAI إلى عنوانها الرسمي عبر HTTPS فقط.", "config")
         return DEFAULTS["openai"]["base_url"]
+    if provider == "gemini":
+        if (parsed.scheme != "https" or host != "generativelanguage.googleapis.com" or port not in {None, 443}
+                or parsed.path not in {"", "/", "/v1beta", "/v1beta/"}):
+            raise AIProviderError("تُرسل طلبات Gemini إلى عنوان Google الرسمي عبر HTTPS فقط.", "config")
+        return DEFAULTS["gemini"]["base_url"]
     try:
         loopback = host == "localhost" or ipaddress.ip_address(host).is_loopback
     except ValueError:
@@ -219,11 +226,13 @@ def _base_url(provider: str, value: str) -> str:
 def _validated(settings: dict) -> dict:
     provider = settings.get("provider", "ollama")
     if not isinstance(provider, str) or provider not in DEFAULTS:
-        raise AIProviderError("اختر مزود OpenAI أو Ollama.", "config")
+        raise AIProviderError("اختر مزود Gemini أو OpenAI أو Ollama.", "config")
     model = settings.get("model", DEFAULTS[provider]["model"])
     if (not isinstance(model, str) or not 1 <= len(model.strip()) <= 120
             or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:/@+-]*", model.strip())):
         raise AIProviderError("اسم نموذج الذكاء الاصطناعي غير صالح.", "config")
+    if provider == "gemini" and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", model.strip()):
+        raise AIProviderError("أدخل معرف نموذج Gemini فقط دون مسار أو معاملات.", "config")
     key = settings.get("api_key", "")
     if not isinstance(key, str) or len(key) > 1000 or any(c.isspace() for c in key):
         raise AIProviderError("صيغة مفتاح الخدمة غير صالحة.", "config")
@@ -249,7 +258,17 @@ class AISettingsStore:
             raw = json.loads(self.path.read_text("utf-8"))
             if not isinstance(raw, dict):
                 raise ValueError
-            return _validated(raw)
+            settings = _validated(raw)
+            keys = raw.get("provider_keys", {})
+            if not isinstance(keys, dict) or set(keys) - {"openai", "gemini"}:
+                raise ValueError
+            for provider, key in keys.items():
+                _validated({"provider": provider, "api_key": key})
+            # Migrate the original single OpenAI credential even if Ollama was selected.
+            if "provider_keys" not in raw and settings["api_key"]:
+                keys = {settings["provider"] if settings["provider"] != "ollama" else "openai": settings["api_key"]}
+            settings["provider_keys"] = dict(keys)
+            return settings
         except (OSError, ValueError, TypeError):
             raise AIProviderError("تعذرت قراءة إعدادات الذكاء الاصطناعي المحفوظة.", "config") from None
 
@@ -261,19 +280,19 @@ class AISettingsStore:
             if not isinstance(provider, str) or provider not in DEFAULTS:
                 raise AIProviderError("إعداد مزود الذكاء الاصطناعي في البيئة غير صالح.", "config")
             effective = dict(saved) if provider == saved["provider"] else {
-                "provider": provider, **DEFAULTS[provider], "api_key": saved.get("api_key", "")}
+                "provider": provider, **DEFAULTS[provider], "api_key": saved.get("provider_keys", {}).get(provider, "")}
             overrides = []
             if os.getenv("AUDIT_AI_PROVIDER"):
                 overrides.append("provider")
             model_env = os.getenv("AUDIT_AI_MODEL") or (os.getenv("OPENAI_MODEL") if provider == "openai" else None)
-            base_env = os.getenv("OPENAI_BASE_URL") if provider == "openai" else os.getenv("OLLAMA_HOST")
+            base_env = os.getenv({"openai": "OPENAI_BASE_URL", "gemini": "GEMINI_BASE_URL", "ollama": "OLLAMA_HOST"}[provider])
             if model_env:
                 effective["model"] = model_env
                 overrides.append("model")
             if base_env:
                 effective["base_url"] = base_env
                 overrides.append("base_url")
-            env_key = os.getenv("OPENAI_API_KEY") if provider == "openai" else None
+            env_key = os.getenv({"openai": "OPENAI_API_KEY", "gemini": "GEMINI_API_KEY"}[provider]) if provider != "ollama" else None
             if env_key:
                 effective["api_key"] = env_key
                 overrides.append("api_key")
@@ -285,11 +304,11 @@ class AISettingsStore:
     def public_settings(self) -> dict:
         settings = self.settings_snapshot()
         provider = settings["provider"]
-        key_configured = provider == "openai" and bool(settings["api_key"])
+        key_configured = provider != "ollama" and bool(settings["api_key"])
         return {"provider": provider, "model": settings["model"], "base_url": settings["base_url"],
                 "configured": provider == "ollama" or key_configured,
                 "key_configured": key_configured,
-                "key_source": settings["key_source"] if provider == "openai" else "none",
+                "key_source": settings["key_source"] if provider != "ollama" else "none",
                 "environment_overrides": settings["environment_overrides"],
                 "supports_images": _supports_images(settings), "vision_supported": _supports_images(settings)}
 
@@ -302,10 +321,13 @@ class AISettingsStore:
             saved = self._read()
             provider = values.get("provider", saved["provider"])
             if not isinstance(provider, str) or provider not in DEFAULTS:
-                raise AIProviderError("اختر مزود OpenAI أو Ollama.", "config")
+                raise AIProviderError("اختر مزود Gemini أو OpenAI أو Ollama.", "config")
             updated = dict(saved)
+            keys = dict(saved.get("provider_keys", {}))
+            if saved["provider"] != "ollama":
+                keys[saved["provider"]] = saved["api_key"]
             if provider != saved["provider"]:
-                updated.update(provider=provider, **DEFAULTS[provider])
+                updated.update(provider=provider, **DEFAULTS[provider], api_key=keys.get(provider, ""))
             for field in ("model", "base_url"):
                 if field in values:
                     updated[field] = values[field]
@@ -319,6 +341,9 @@ class AISettingsStore:
                 if key.strip():
                     updated["api_key"] = key.strip()
             updated = _validated(updated)
+            if provider != "ollama":
+                keys[provider] = updated["api_key"]
+            updated["provider_keys"] = keys
             self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
             temporary = None
             try:
@@ -422,8 +447,8 @@ class AIClient:
         self.settings = _validated(settings_snapshot)
         self.supports_images = _supports_images(self.settings)
         self.settings["supports_images"] = self.supports_images
-        if self.settings["provider"] == "openai" and not self.settings["api_key"]:
-            raise AIProviderError("أضف مفتاح OpenAI من إعدادات الذكاء الاصطناعي أولاً.", "not_configured")
+        if self.settings["provider"] != "ollama" and not self.settings["api_key"]:
+            raise AIProviderError("أضف مفتاح المزوّد السحابي المختار من إعدادات الذكاء الاصطناعي أولاً.", "not_configured")
         self.transport = transport
         self.max_attempts = max(1, min(3, int(max_attempts)))
         self.sleep = sleep
@@ -505,6 +530,21 @@ class AIClient:
             if self.settings["model"].startswith("gpt-5"):
                 request["reasoning"] = {"effort": "high"}
             headers["Authorization"] = "Bearer " + self.settings["api_key"]
+        elif provider == "gemini":
+            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", self.settings["model"]):
+                raise AIProviderError("اسم نموذج Gemini يجب أن يكون معرف النموذج دون مسار أو معاملات.", "config")
+            url = self.settings["base_url"] + "/models/" + self.settings["model"] + ":generateContent"
+            parts = [{"text": text}]
+            for image in image_content:
+                metadata, encoded = image["image_url"].split(",", 1)
+                parts.append({"inlineData": {"mimeType": metadata[5:].split(";")[0], "data": encoded}})
+            request = {"systemInstruction": {"parts": [{"text": system}]},
+                       "contents": [{"role": "user", "parts": parts}],
+                       "generationConfig": {"responseMimeType": "application/json", "responseJsonSchema": schema,
+                                            "temperature": 0, "maxOutputTokens": 16384, "candidateCount": 1}}
+            if self.settings["model"].startswith("gemini-2.5-flash"):
+                request["generationConfig"]["thinkingConfig"] = {"thinkingBudget": 0}
+            headers["x-goog-api-key"] = self.settings["api_key"]
         else:
             # UTF-8 byte length is a deliberately conservative text-token bound.
             # Refuse oversized requests rather than let Ollama silently discard
@@ -543,6 +583,7 @@ class AIClient:
             for attempt in range(self.max_attempts):
                 self._check_cancel()
                 retry = False
+                retry_delay = min(2 ** attempt, 4)
                 try:
                     with client.stream("POST", url, json=request, headers=headers) as response, self._response_scope(response):
                         status = response.status_code
@@ -551,7 +592,19 @@ class AIClient:
                         if provider == "ollama" and status == 404:
                             raise AIProviderError("النموذج المحلي غير موجود في Ollama؛ نزّله أولًا بالأمر: ollama pull " + self.settings["model"],
                                                   "model_missing")
+                        if provider == "gemini" and status == 404:
+                            raise AIProviderError("نموذج Gemini المحدد غير متاح؛ اختر معرف نموذج متاح لحسابك في Google AI Studio.",
+                                                  "model_missing")
                         if status == 429 or status >= 500:
+                            # Honor a short server cooldown without unbounded
+                            # waiting; cancellation still interrupts this wait.
+                            try:
+                                cooldown = int(response.headers.get("Retry-After", "0"))
+                            except ValueError:
+                                cooldown = 0
+                            if cooldown > 60:
+                                raise AIProviderError("الحصة غير متاحة حاليًا؛ انتظر تجددها أو راجع حدود حساب المزوّد ثم أعد التدقيق.", "rate_limit")
+                            retry_delay = max(retry_delay, max(0, cooldown))
                             error = AIProviderError("بلغت الخدمة حد الاستخدام؛ أعد المحاولة لاحقاً." if status == 429 else
                                                     "تعذر تشغيل النموذج المحلي؛ تحقق من الذاكرة ومن تنزيل النموذج في Ollama." if provider == "ollama" else
                                                     "خدمة الذكاء الاصطناعي غير متاحة مؤقتاً.",
@@ -602,11 +655,10 @@ class AIClient:
                     retry = True
                 if retry and attempt + 1 < self.max_attempts:
                     self._check_cancel()
-                    delay = min(2 ** attempt, 4)
                     if self.sleep is time.sleep:
-                        self._cancel_event.wait(delay)
+                        self._cancel_event.wait(retry_delay)
                     else:
-                        self.sleep(delay)
+                        self.sleep(retry_delay)
                     self._check_cancel()
                 else:
                     break
@@ -646,6 +698,30 @@ class AIClient:
     def _answer(self, envelope: Any) -> str:
         if not isinstance(envelope, dict):
             raise AIProviderError("استجابة خدمة الذكاء الاصطناعي غير صالحة.", "response")
+        if self.settings["provider"] == "gemini":
+            feedback = envelope.get("promptFeedback", {})
+            if not isinstance(feedback, dict):
+                raise AIProviderError("صيغة استجابة Gemini غير صالحة.", "response")
+            if feedback.get("blockReason"):
+                raise AIProviderError("امتنع Gemini عن معالجة الطلب؛ لم تُعتمد نتيجة بديلة.", "refusal")
+            candidates = envelope.get("candidates")
+            if not isinstance(candidates, list) or len(candidates) != 1 or not isinstance(candidates[0], dict):
+                raise AIProviderError("لم يُرجع Gemini نتيجة فحص واحدة مكتملة.", "response")
+            candidate = candidates[0]
+            reason = candidate.get("finishReason")
+            if reason == "MAX_TOKENS":
+                raise AIProviderError("بلغ رد Gemini حد الطول؛ لم تُعتمد النتيجة الجزئية.", "incomplete")
+            if reason != "STOP":
+                raise AIProviderError("لم يُكمل Gemini الفحص أو حُجب الرد؛ لم تُعتمد نتيجة جزئية.", "refusal")
+            content = candidate.get("content", {})
+            parts = content.get("parts", []) if isinstance(content, dict) else []
+            if not isinstance(parts, list):
+                raise AIProviderError("صيغة استجابة Gemini غير صالحة.", "response")
+            texts = [part["text"] for part in parts if isinstance(part, dict) and
+                     isinstance(part.get("text"), str) and not part.get("thought")]
+            if not texts:
+                raise AIProviderError("لم يُرجع Gemini نص نتيجة الفحص.", "response")
+            return "".join(texts)
         if self.settings["provider"] == "ollama":
             if envelope.get("done") is False or envelope.get("done_reason") == "length":
                 raise AIProviderError("توقف النموذج قبل اكتمال نتيجة الفحص؛ لم تُعتمد النتيجة الجزئية.", "incomplete")
