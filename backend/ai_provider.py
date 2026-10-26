@@ -430,6 +430,7 @@ class AIClient:
         self._cancel_event = threading.Event()
         self._active_lock = threading.Lock()
         self._active_client = self._active_transport = self._active_response = None
+        self.last_metrics = {}
 
     def _check_cancel(self):
         if self._cancel_event.is_set():
@@ -475,6 +476,7 @@ class AIClient:
     def complete(self, system: str, payload: dict, schema: dict, task: str = "audit",
                  images: list[dict] | None = None) -> dict:
         self._check_cancel()
+        self.last_metrics = {}
         if not isinstance(system, str) or not isinstance(payload, dict) or not isinstance(schema, dict):
             raise AIProviderError("طلب الذكاء الاصطناعي غير صالح.", "request")
         try:
@@ -525,9 +527,16 @@ class AIClient:
             user_message = {"role": "user", "content": text}
             if image_content:
                 user_message["images"] = [image["image_url"].split(",", 1)[1] for image in image_content]
+            # A conservative byte upper bound includes Ollama's schema grammar
+            # and output reserve. Small requests need less KV-cache memory;
+            # larger batches retain the existing 16K allocation.
+            output_tokens = 128 if task == "connection_test" else 4096
+            reserved = input_size + len(json.dumps(schema, ensure_ascii=False).encode("utf-8")) + output_tokens + 512
+            context_tokens = 8192 if reserved <= 8192 else 16384
             request = {"model": self.settings["model"], "stream": False, "format": schema,
+                       "keep_alive": "15m",
                        "messages": [{"role": "system", "content": system}, user_message],
-                       "options": {"temperature": 0, "num_ctx": 16384, "num_predict": 4096}}
+                       "options": {"temperature": 0, "num_ctx": context_tokens, "num_predict": output_tokens}}
         timeout = httpx.Timeout(connect=10, read=600 if provider == "ollama" else 180, write=30, pool=10)
         error = AIProviderError("تعذر الاتصال بخدمة الذكاء الاصطناعي.", "network")
         with self._client_scope(timeout) as client:
@@ -573,6 +582,12 @@ class AIClient:
                             if not valid:
                                 raise AIProviderError("لم تطابق نتيجة الذكاء الاصطناعي مخطط الفحص؛ لم تُعتمد.", "schema")
                             self._check_cancel()
+                            # Numeric performance counters only; never retain prompt/response text.
+                            if provider == "ollama":
+                                self.last_metrics = {key: envelope[key] for key in
+                                    ("total_duration", "load_duration", "prompt_eval_count", "prompt_eval_duration",
+                                     "eval_count", "eval_duration")
+                                    if type(envelope.get(key)) is int and envelope[key] >= 0}
                             return parsed
                 except AIProviderError as exc:
                     self._check_cancel()
