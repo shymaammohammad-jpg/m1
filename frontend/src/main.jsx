@@ -1727,6 +1727,7 @@ function Report({ current, onUpdate, notify }) {
             key={current.updated_at}
             className="report-preview"
             title="معاينة مسودة التقرير"
+            sandbox="allow-same-origin"
             src={`/api/cases/${current.id}/report?format=html&final=false`}
           />
         )}

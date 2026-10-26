@@ -1,6 +1,8 @@
 # رقيب — تدقيق العقود الحكومية بالذكاء الاصطناعي
 
-[تنزيل رقيب مع Gemini API — 2.1.0](https://github.com/shymaammohammad-jpg/m1/raw/refs/heads/raqib-cloud-api/downloads/Raqib_Cloud_Gemini_2.1.0.zip) · [إعداد Gemini وطريقة التحديث](CLOUD_GEMINI_AR.md)
+**حالة فحص Windows:** أبلغ المستخدم عن اكتشاف Defender في حزمة 2.1.0؛ أُوقفت التوصية بها. الإصدار 2.1.1 معاد البناء وقابل للتدقيق، لكنه لم يُعتمد من Defender ولا يصح وصفه بخالٍ من الفيروسات. [نتائج المراجعة وحدودها](SECURITY_REVIEW_AR.md). لا تتجاوز أي تنبيه حماية.
+
+[تنزيل رقيب مع Gemini API — 2.1.1](https://github.com/shymaammohammad-jpg/m1/raw/refs/heads/raqib-cloud-api/downloads/Raqib_Cloud_Gemini_2.1.1.zip) · [إعداد Gemini وطريقة التحديث](CLOUD_GEMINI_AR.md)
 
 ## تشغيل Gemini السحابي
 

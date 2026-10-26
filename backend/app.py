@@ -124,7 +124,7 @@ async def lifespan(app: FastAPI):
             _AI_MANAGER.shutdown()
 
 
-app = FastAPI(title="نظام تدقيق العقود الحكومية", version="2.0.0", lifespan=lifespan)
+app = FastAPI(title="نظام تدقيق العقود الحكومية", version="2.1.1", lifespan=lifespan)
 
 
 @app.middleware("http")
@@ -146,6 +146,15 @@ async def response_headers(request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "same-origin"
+    if not request.url.path.startswith("/api/") and response.headers.get("content-type", "").startswith("text/html"):
+        # The application executes its own local scripts only. Provider API
+        # requests are made by the backend, never by browser-side third parties.
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self'; connect-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+            "font-src 'self'; frame-src 'self' blob:; object-src 'none'; "
+            "base-uri 'none'; form-action 'self'; frame-ancestors 'self'"
+        )
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
     return response
